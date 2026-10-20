@@ -1,33 +1,24 @@
-document.querySelector("input[name='medicine_name']").focus();
+<?php
+require_once __DIR__ . '/../dbconnection.php';
 
-const priceInput = document.querySelector("input[name='price']");
-priceInput.addEventListener("input", () => {
-    let val = priceInput.value.replace(/[^\d.]/g, "");
-    priceInput.value = val ? parseFloat(val).toFixed(2) : "";
-});
+if (!isLoggedIn() || $_SESSION['role'] !== 'admin') {
+    header('Location: ../login.php');
+    exit;
+}
 
-const stockInput = document.querySelector("input[name='stock']");
-stockInput.addEventListener("input", () => {
-    if (stockInput.value < 0) {
-        alert("Stock cannot be negative!");
-        stockInput.value = "";
-    }
-});
+if (!isset($_GET['id'])) {
+    header('Location: ../admin-dashboard.php?error=invalid_id');
+    exit;
+}
 
-const expiryInput = document.querySelector("input[name='expiry_date']");
-expiryInput.addEventListener("change", () => {
-    let today = new Date().toISOString().split("T")[0];
-    if (expiryInput.value < today) {
-        alert("Expiry date must be in the future!");
-        expiryInput.value = "";
-    }
-});
+$id = (int) $_GET['id'];
 
-const form = document.getElementById("editMedicineForm");
-form.addEventListener("submit", (e) => {
-    if (!confirm("Are you sure you want to update this medicine?")) {
-        e.preventDefault();
-    } else {
-        alert("✅ Medicine updated successfully!");
-    }
-});
+try {
+    $stmt = $pdo->prepare('DELETE FROM medicines WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    header('Location: ../admin-dashboard.php?deleted=1');
+    exit;
+} catch (PDOException $e) {
+    header('Location: ../admin-dashboard.php?error=' . urlencode('Unable to delete medicine.'));
+    exit;
+}

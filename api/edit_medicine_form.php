@@ -1,75 +1,33 @@
-<?php
-include('../dbconnection.php');
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin', 'user')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-if (!isset($_GET['id'])) {
-    header("Location: ../admin-dashboard.php");
-    exit();
-}
+CREATE TABLE IF NOT EXISTS medicines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    medicine_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    stock INTEGER NOT NULL DEFAULT 0,
+    price REAL NOT NULL DEFAULT 0,
+    expiry_date TEXT NOT NULL,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-$id = (int)$_GET['id'];
-$stmt = $pdo->prepare("SELECT * FROM medicines WHERE id = ?");
-$stmt->execute([$id]);
-$medicine = $stmt->fetch(PDO::FETCH_ASSOC);
+CREATE TABLE IF NOT EXISTS medicine_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    medicine_name TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
-if (!$medicine) {
-    header("Location: ../admin-dashboard.php");
-    exit();
-}
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Edit Medicine</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-
-<div class="container mt-5">
-    <div class="card shadow p-4">
-        <h3 class="mb-4 text-primary">✏️ Edit Medicine</h3>
-
-        <form id="editMedicineForm" method="POST" action="../api/edit_medicine.php">
-
-            <input type="hidden" name="id" value="<?= $medicine['id'] ?>">
-
-            <div class="mb-3">
-                <label class="form-label">Medicine Name</label>
-                <input type="text" name="medicine_name" class="form-control" value="<?= htmlspecialchars($medicine['medicine_name']) ?>" required>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Category</label>
-                <input type="text" name="category" class="form-control" value="<?= htmlspecialchars($medicine['category']) ?>" required>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Stock</label>
-                <input type="number" name="stock" class="form-control" value="<?= $medicine['stock'] ?>" required>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Price (₱)</label>
-                <input type="text" name="price" class="form-control" value="<?= number_format($medicine['price'],2) ?>" required>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Expiry Date</label>
-                <input type="date" name="expiry_date" class="form-control" value="<?= $medicine['expiry_date'] ?>" required>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Description</label>
-                <textarea name="description" class="form-control" rows="3"><?= htmlspecialchars($medicine['description']) ?></textarea>
-            </div>
-
-            <button type="submit" class="btn btn-success px-4">Update</button>
-            <a href="../admin-dashboard.php" class="btn btn-secondary px-4">Cancel</a>
-        </form>
-    </div>
-</div>
-
-<script src="../assets/js/edit_medicine.js"></script> 
-</body>
-</html>
+INSERT OR IGNORE INTO users (username, email, password, role, created_at)
+VALUES ('Admin', 'admin@pharmacy.local', '$2y$10$7S3E7z4KZbqX1j8J2D2P1.pD8bK5v4iR7MRh7iY2rVJ0dw6DX.Wei', 'admin', datetime('now'));

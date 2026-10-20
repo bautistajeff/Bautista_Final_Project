@@ -1,52 +1,79 @@
 <?php
-include('../dbconnection.php');
+require_once __DIR__ . '/../dbconnection.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    if (!isset($_POST['id'], $_POST['medicine_name'], $_POST['category'], $_POST['stock'], $_POST['price'], $_POST['expiry_date'], $_POST['description'])) {
-        header("Location: ../admin-dashboard.php?error=missing_fields");
-        exit();
-    }
-
-    $id = (int)$_POST['id'];
-    $medicine_name = trim($_POST['medicine_name']);
-    $category = trim($_POST['category']);
-    $stock = (int)$_POST['stock'];
-    $price = (float)$_POST['price'];
-    $expiry_date = $_POST['expiry_date'];
-    $description = trim($_POST['description']);
-
-    try {
-       
-        $stmt = $pdo->prepare("
-            UPDATE medicines SET 
-                medicine_name = :medicine_name,
-                category = :category,
-                stock = :stock,
-                price = :price,
-                expiry_date = :expiry_date,
-                description = :description
-            WHERE id = :id
-        ");
-
-        $stmt->execute([
-            ':medicine_name' => $medicine_name,
-            ':category' => $category,
-            ':stock' => $stock,
-            ':price' => $price,
-            ':expiry_date' => $expiry_date,
-            ':description' => $description,
-            ':id' => $id
-        ]);
-
-        header("Location: ../admin-dashboard.php?updated=1");
-        exit();
-
-    } catch (PDOException $e) {
-        die("Error updating medicine: " . htmlspecialchars($e->getMessage()));
-    }
-} else {
-    
-    header("Location: ../admin-dashboard.php");
-    exit();
+if (!isLoggedIn() || $_SESSION['role'] !== 'admin') {
+    header('Location: ../login.php');
+    exit;
 }
+
+if (!isset($_GET['id'])) {
+    header('Location: ../admin-dashboard.php');
+    exit;
+}
+
+$id = (int) $_GET['id'];
+$stmt = $pdo->prepare('SELECT * FROM medicines WHERE id = :id LIMIT 1');
+$stmt->execute([':id' => $id]);
+$medicine = $stmt->fetch();
+
+if (!$medicine) {
+    header('Location: ../admin-dashboard.php');
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Medicine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container mt-5">
+    <div class="card shadow p-4">
+        <h3 class="mb-4 text-primary">✏️ Edit Medicine</h3>
+
+        <form id="editMedicineForm" method="POST" action="../api/edit_medicine.php">
+            <input type="hidden" name="id" value="<?php echo (int) $medicine['id']; ?>">
+
+            <div class="mb-3">
+                <label class="form-label">Medicine Name</label>
+                <input type="text" name="medicine_name" class="form-control" value="<?php echo htmlspecialchars($medicine['medicine_name']); ?>" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Category</label>
+                <input type="text" name="category" class="form-control" value="<?php echo htmlspecialchars($medicine['category']); ?>" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Stock</label>
+                <input type="number" name="stock" min="0" class="form-control" value="<?php echo (int) $medicine['stock']; ?>" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Price (₱)</label>
+                <input type="number" name="price" step="0.01" min="0" class="form-control" value="<?php echo number_format((float) $medicine['price'], 2, '.', ''); ?>" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Expiry Date</label>
+                <input type="date" name="expiry_date" class="form-control" value="<?php echo htmlspecialchars($medicine['expiry_date']); ?>" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="3"><?php echo htmlspecialchars($medicine['description'] ?? ''); ?></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-success px-4">Update</button>
+            <a href="../admin-dashboard.php" class="btn btn-secondary px-4">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script src="../assets/edit_medicine.js"></script>
+</body>
+</html>

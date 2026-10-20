@@ -1,108 +1,73 @@
 <?php
-session_start();
-require_once(__DIR__ . '/dbconnection.php');
+require_once __DIR__ . '/dbconnection.php';
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.php");
-    exit();
+if (isLoggedIn()) {
+    redirectToDashboard();
 }
 
-try {
-    $stmt = $pdo->prepare("SELECT COUNT(*) AS total FROM medicines");
-    $stmt->execute();
-    $totalMedicines = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
-} catch (PDOException $e) {
-    $totalMedicines = 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = trim($_POST['email'] ?? '');
+    $password = trim($_POST['password'] ?? '');
+
+    if ($email !== '' && $password !== '') {
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE email = :email LIMIT 1');
+        $stmt->execute([':email' => $email]);
+        $user = $stmt->fetch();
+
+        if ($user && password_verify($password, $user['password'])) {
+            $_SESSION['user_id'] = (int) $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
+            redirectToDashboard();
+        }
+
+        $_SESSION['msg'] = 'Invalid email or password.';
+    } else {
+        $_SESSION['msg'] = 'Please complete both fields.';
+    }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | Pharmacy Inventory</title>
+    <title>Login | Pharmacy Inventory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
+<div class="container d-flex justify-content-center align-items-center min-vh-100">
+    <div class="card shadow-sm border-0" style="width: 100%; max-width: 420px;">
+        <div class="card-body p-4">
+            <h3 class="text-center mb-4">Login</h3>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="#">Pharmacy Inventory</a>
-        <div class="d-flex">
-            <a href="logout.php" class="btn btn-danger btn-sm">Logout</a>
-        </div>
-    </div>
-</nav>
+            <?php if (!empty($_SESSION['msg'])): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($_SESSION['msg']); unset($_SESSION['msg']); ?></div>
+            <?php endif; ?>
 
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3>Admin Dashboard</h3>
-        <div>
-            <a href="view_graph.php" class="btn btn-info me-2">View Graph</a>
-            <a href="add_medicine.php" class="btn btn-success">Add Medicine</a>
-        </div>
-    </div>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email" value="admin@pharmacy.local" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" name="password" value="admin123" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Login</button>
+            </form>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Total Medicines</h5>
-            <p class="display-6 fw-bold text-primary"><?php echo $totalMedicines; ?></p>
-        </div>
-    </div>
+            <div class="text-center mt-3">
+                <span>Need an account?</span>
+                <a href="signup.php">Create one</a>
+            </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title mb-3">Recent Medicines</h5>
-            <table class="table table-striped align-middle text-center">
-                <thead class="table-primary">
-                    <tr>
-                        <th>ID</th>
-                        <th>Medicine Name</th>
-                        <th>Category</th>
-                        <th>Stock</th>
-                        <th>Price (₱)</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    try {
-                        $stmt = $pdo->prepare("SELECT * FROM medicines ORDER BY id DESC LIMIT 10");
-                        $stmt->execute();
-                        $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        if ($medicines) {
-                            foreach ($medicines as $row) {
-                                $id = $row['id'];
-                                echo "
-                                <tr>
-                                    <td>{$id}</td>
-                                    <td>{$row['medicine_name']}</td>
-                                    <td>{$row['category']}</td>
-                                    <td>{$row['stock']}</td>
-                                    <td>" . number_format($row['price'], 2) . "</td>
-                                    <td>
-                                        <a href='./api/edit_medicine_form.php?id={$id}' class='btn btn-warning btn-sm'>Edit</a>
-                                        <a href='./api/delete_medicine.php?id={$id}' 
-                                           class='btn btn-danger btn-sm'
-                                           onclick=\"return confirm('Are you sure you want to delete this medicine?')\">Delete</a>
-                                    </td>
-                                </tr>";
-                            }
-                        } else {
-                            echo "<tr><td colspan='6' class='text-center text-muted'>No medicines found.</td></tr>";
-                        }
-                    } catch (PDOException $e) {
-                        echo "<tr><td colspan='6' class='text-danger text-center'>Database error.</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
+            <div class="alert alert-info mt-3 mb-0 small">
+                Demo admin account: admin@pharmacy.local / admin123
+            </div>
         </div>
     </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>
